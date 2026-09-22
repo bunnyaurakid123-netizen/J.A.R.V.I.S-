@@ -29,7 +29,7 @@ class DialogueMessage:
 @dataclass
 class DialogueConfig:
     other_name: str = "FRIDAY"
-    max_turns: int = 12
+    max_turns: int = 0
     pause_seconds: float = 0.8
     max_response_chars: int = 2500
     openai_model: str = "gpt-5-mini"
@@ -104,7 +104,7 @@ class ContinuousAIDialogue:
         current = opening
 
         try:
-            for turn in range(1, self.config.max_turns + 1):
+            turn = 0\n            while True:\n                turn += 1
                 if self._stop_event.is_set():
                     break
 
