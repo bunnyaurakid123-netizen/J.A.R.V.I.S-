@@ -90,7 +90,7 @@ class AIBridgeWindow(QWidget):
                 other_name=other,
                 openai_model=self.model.text().strip() or "gpt-5-mini",
                 openai_api_key=key,
-                max_turns=1000,
+                max_turns=0,
                 pause_seconds=0.6,
             ),
             on_message=lambda m:self.signals.message.emit(m.speaker,m.text),
