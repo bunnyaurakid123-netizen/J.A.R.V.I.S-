@@ -12,8 +12,8 @@ def get_base_dir() -> Path:
     return Path(__file__).resolve().parent
 BASE_DIR=get_base_dir(); sys.path.insert(0,str(BASE_DIR))
 
-from PyQt6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtWidgets import QApplication, QSystemTrayIcon, QMenu, QLabel
+from PyQt6.QtCore import Qt, QTimer, QEvent
 from PyQt6.QtGui import QIcon, QBrush, QColor
 from ui import JarvisUI
 from core.tts import create_tts_player
@@ -53,8 +53,16 @@ class JarvisApp:
         self.app=QApplication(sys.argv); self.app.setStyle("Fusion")
         try:self.system_prompt=PROMPT_PATH.read_text(encoding="utf-8")
         except Exception:self.system_prompt="You are JARVIS. Be concise, professional, direct."
-        display_name="Sir"
-        self.window=JarvisUI(display_name=display_name); self.window.show(); self.window.showMaximized(); self.window.raise_(); self.window.activateWindow()
+        display_name="JARVIS"
+        self.window=JarvisUI(display_name=display_name)
+        self._brand_footer=QLabel("Made by Bunny", self.window)
+        self._brand_footer.setObjectName("brandFooter")
+        self._brand_footer.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        self._brand_footer.setStyleSheet("QLabel#brandFooter { color: #7feaff; background: transparent; padding: 2px 8px; font-size: 10px; font-weight: 600; }")
+        self._brand_footer.adjustSize()
+        self.window.installEventFilter(self)
+        self.window.show(); self.window.showMaximized(); self.window.raise_(); self.window.activateWindow()
+        self._position_brand_footer()
         self.tts=create_tts_player()
         self.commander=CommandExecutor(tts_speak_fn=lambda text:self.tts.speak(text),log_fn=lambda text:self._log(text))
         self.history:list[dict[str,str]]=[]; self._busy=False; self._tts_queue=[]; self._tts_thread=None
@@ -66,6 +74,19 @@ class JarvisApp:
         self._setup_tray(); self._log(f"[SYS] J.A.R.V.I.S v3.2 starting — Minecraft module: {feature_count()} features")
         self._log(f"[SYS] Model: {get_model()}"); self._log("[SYS] Minecraft command center online")
         threading.Thread(target=self._check_connection,daemon=True).start(); self.history=mem_store.load_history(limit=30)
+
+    def eventFilter(self, watched, event):
+        if watched is self.window and event.type() in (QEvent.Type.Resize, QEvent.Type.Show):
+            QTimer.singleShot(0, self._position_brand_footer)
+        return super().eventFilter(watched, event)
+
+    def _position_brand_footer(self):
+        if not hasattr(self, "_brand_footer") or not self._brand_footer:
+            return
+        margin=12
+        self._brand_footer.adjustSize()
+        self._brand_footer.move(self.window.width() - self._brand_footer.width() - margin, self.window.height() - self._brand_footer.height() - margin)
+        self._brand_footer.raise_()
 
     def _setup_tray(self):
         icon_path=BASE_DIR/"assets"/"jarvis.ico"; self.tray=QSystemTrayIcon(QIcon(str(icon_path))) if icon_path.exists() else QSystemTrayIcon()
