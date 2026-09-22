@@ -20,7 +20,7 @@ from core.tts import create_tts_player
 from core.llm_client import call_stream, check_connection, get_model, set_api_key, get_api_key
 from core.brain import detect_mode, extract_memory_commands, web_search, get_weather
 from core.agent import build_plan, build_context, augment_system_prompt
-from core.minecraft import parse_request, feature_count
+from core.minecraft import parse_request, feature_count\nfrom core.ai_bridge import AIBridgeWindow
 from actions.executor import CommandExecutor
 import memory.store as mem_store
 
@@ -67,7 +67,7 @@ class JarvisApp:
         self.commander=CommandExecutor(tts_speak_fn=lambda text:self.tts.speak(text),log_fn=lambda text:self._log(text))
         self.history:list[dict[str,str]]=[]; self._busy=False; self._tts_queue=[]; self._tts_thread=None
         self._current_voice="en-US-GuyNeural"; self._current_rate="+0%"; self._current_mode="STANDARD"
-        self._ai_response_started=False; self._accumulated_text=""; self._displayed_len=0; self._request_id=0
+        self._ai_response_started=False; self._accumulated_text=""; self._displayed_len=0; self._request_id=0\n        self._ai_bridge=None
         self.window.send_text.connect(self._on_user_text); self.window.mic_clicked.connect(self._on_mic); self.window.stop_clicked.connect(self._on_stop)
         self.window.settings_changed.connect(self._on_settings_changed); self.window.note_saved.connect(self._on_note_saved)
         self._stderr=_LogRedirector(self.window.chat_display,"[ERR]"); self._stdout=_LogRedirector(self.window.chat_display,"[LOG]"); sys.stdout=self._stdout; sys.stderr=self._stderr
@@ -122,13 +122,13 @@ class JarvisApp:
                 try:self.window.set_mic_active(False); self.window.set_state("ONLINE" if not self._busy else "THINKING")
                 except Exception:pass
         threading.Thread(target=_listen,daemon=True).start()
-    def _on_stop(self): self.tts.stop(); self._tts_queue.clear(); self._request_id+=1; self._busy=False; self.window.set_state("ONLINE")
+    def _on_stop(self):\n        self.tts.stop(); self._tts_queue.clear(); self._request_id+=1; self._busy=False\n        if self._ai_bridge and self._ai_bridge.dialogue: self._ai_bridge.stop_dialogue()\n        self.window.set_state("ONLINE")
     def _on_settings_changed(self,settings):
         if "voice" in settings:self._current_voice=settings["voice"]
         if "rate" in settings:self._current_rate=settings["rate"]
         if settings.get("api_key"): set_api_key(settings["api_key"]); self._log("[SYS] New API key saved."); threading.Thread(target=self._check_connection,daemon=True).start()
     def _on_note_saved(self,title,content): self._log(f"[SYS] {mem_store.save_note(title,content)}")
-    def _display_command_response(self,response):
+    def _open_ai_cooperation(self):\n        if self._ai_bridge is None:\n            self._ai_bridge=AIBridgeWindow(self.window)\n        self._ai_bridge.show(); self._ai_bridge.raise_(); self._ai_bridge.activateWindow()\n        self._log("[SYS] AI Cooperation Center opened. Choose FRIDAY or ChatGPT and paste the OpenAI key.")\n\n    def _handle_ai_command(self,text):\n        t=text.lower().strip()\n        if any(p in t for p in ("talk to friday","talk with friday","cooperate with friday","cooperate with another ai","talk to chatgpt","talk with chatgpt")):\n            self._open_ai_cooperation()\n            if "cooperate with friday" in t and self._ai_bridge:\n                self._ai_bridge.name.setCurrentText("FRIDAY")\n                if "cooperate with friday" in t:\n                    self._ai_bridge.prompt.setText("JARVIS and FRIDAY should cooperate on the user’s current project.")\n            if "talk to chatgpt" in t and self._ai_bridge:\n                self._ai_bridge.name.setCurrentText("ChatGPT")\n            return True\n        if t in ("stop","stop talking","stop conversation","stop ai conversation") or "stop talking to friday" in t:\n            if self._ai_bridge: self._ai_bridge.stop_dialogue()\n            self._on_stop()\n            self._log("[SYS] AI-to-AI conversation stopped.")\n            return True\n        return False\n\n    def _display_command_response(self,response):
         self.window.chat_display.add_message("JARVIS",response,is_user=False)
         threading.Thread(target=lambda:self.tts.speak(response),daemon=True).start()
     def _process_user_input(self,text):
