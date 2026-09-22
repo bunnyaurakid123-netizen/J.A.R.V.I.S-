@@ -20,7 +20,7 @@ from core.tts import create_tts_player
 from core.llm_client import call_stream, check_connection, get_model, set_api_key, get_api_key
 from core.brain import detect_mode, extract_memory_commands, web_search, get_weather
 from core.agent import build_plan, build_context, augment_system_prompt
-from core.minecraft import parse_request, feature_count\nfrom core.ai_bridge import AIBridgeWindow
+from core.minecraft import parse_request, feature_count\nfrom core.ai_bridge import AIBridgeWindow\nfrom core.self_knowledge import system_prompt_block
 from actions.executor import CommandExecutor
 import memory.store as mem_store
 
@@ -144,7 +144,7 @@ class JarvisApp:
             if action=="memory":mem_store.save_memory(key,val); self._log(f"[SYS] Remembered: {key} = {val}")
             elif action=="note":mem_store.save_note(key,val)
             elif action=="recall":self._log(f"[SYS] {len(mem_store.load_notes())} notes found")
-        memory_context=mem_store.get_memory_context(); plan=build_plan(text,self._current_mode); request_history=build_context(self.history,memory_context=memory_context); dynamic_prompt=augment_system_prompt(self.system_prompt,plan,memory_context)
+        memory_context=mem_store.get_memory_context(); plan=build_plan(text,self._current_mode); request_history=build_context(self.history,memory_context=memory_context); dynamic_prompt=augment_system_prompt(self.system_prompt,plan,memory_context) + "\\n\\n" + system_prompt_block()
         self._log(f"[AGENT] {plan.mode} | {len(plan.steps)}-step plan"); self._busy=True; self._request_id+=1; req_id=self._request_id
         self.history.append({"role":"user","content":text}); self.history=self.history[-30:]; self._accumulated_text=""; self._displayed_len=0; self.window.set_state("THINKING")
         def _ai_loop():
